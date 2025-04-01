@@ -6,10 +6,10 @@
 #include <string.h>
 
 // Config (Global Variables)
-// 1. input_file = urls.txt
-// 2. output_directory = current_directory
-// 3. important_words = important_words.txt (e.g., data, science, algorithm)
-// 4. no_of_threads = 10
+char* input_file = "urls.txt";
+char* output_directory = "./";
+char* important_words = "important_words.txt";
+int no_of_threads = 10;
 
 // Structs
 typedef char* url;
@@ -50,6 +50,8 @@ content read_file(char* filename);
 content fetch(url url);
 occurrence_report count_occurrences(content html);
 int write_file(char* filename, content);
+
+void init_impwords_file();  // (e.g., data, science, algorithm)
 
 void* thread_worker(void* args);  // args[0] = queue and args[1] = globalor
 

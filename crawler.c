@@ -21,6 +21,7 @@ typedef struct url_queue_struct {
   url_queue_node* head;
   url_queue_node* tail;
   pthread_mutex_t lock;
+  int size;
 } url_queue;
 
 typedef char* word;
@@ -34,12 +35,15 @@ typedef struct occurrence_report_struct {
 } occurrence_report;
 
 // Function Declarations
-int enqueue(url_queue* queue, url url);
-url dequeue(url_queue* queue);
+url_queue* init_url_queue();
+int enqueue_url(url_queue* queue, url url);
+url dequeue_url(url_queue* queue);
+void free_url_queue(url_queue* queue);
 
 occurrence_report init_occurrence_report(word* word);
 int update_occurrence_report(occurrence_report globalor,
                              occurrence_report localor);
+void free_occurence_report(occurrence_report or);
 
 typedef char* content;
 content read_file(char* filename);
@@ -47,7 +51,7 @@ content fetch(url url);
 occurrence_report count_occurrences(content html);
 int write_file(char* filename, content);
 
-void* thread_worker(void* arg);
+void* thread_worker(void* args);  // args[0] = queue and args[1] = globalor
 
 // Implementation
 // TODO

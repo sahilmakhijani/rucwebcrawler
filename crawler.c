@@ -7,10 +7,10 @@
 #include <string.h>
 
 // Config (Global Variables)
-char* input_file = "urls.txt";
-char* output_directory = "./";
-char* important_words = "important_words.txt";
-int no_of_threads = 10;
+char* urls_file = "urls.txt";
+char* html_directory = "./";
+char* impwords_file = "impwords.txt";
+int threads_count = 10;
 
 // Structs
 typedef char* url;
@@ -43,22 +43,24 @@ url dequeue_url(url_queue* queue);
 void free_url_queue(url_queue* queue);
 bool isEmpty(url_queue* queue);
 
-occurrence_report init_occurrence_report(word* word);
-int update_occurrence_report(occurrence_report globalor,
-                             occurrence_report localor);
-void free_occurence_report(occurrence_report or);
+occurrence_report* init_occurrence_report();
+occurrence_report* count_occurrences(char* html);
+int update_occurrence_report(occurrence_report* globalor,
+                             occurrence_report* localor);
+void free_occurence_report(occurrence_report* or);
 
-typedef char* content;
-content read_file(char* filename);
-content fetch(url url);
-occurrence_report count_occurrences(content html);
-int write_file(char* filename, content);
+char* read_file(char* filename);
+char* fetch(url url);
+int write_file(char* filename, char* data);
 
 void init_impwords_file();  // (e.g., data, science, algorithm)
+word* get_impwords();
 
-void* thread_worker(void* args);  // args[0] = queue and args[1] = globalor
+void* thread_worker(void* args);
 
-// helper
+/*************************************************************
+ * HELPERS
+ ************************************************************/
 char* strdup(const char* str) {
   int n = strlen(str) + 1;
   char* dup = malloc(n);
@@ -66,6 +68,18 @@ char* strdup(const char* str) {
     strcpy(dup, str);
   }
   return dup;
+}
+
+/** HELPER FUNCTION
+ * to_lowercase - lowers each character in a character array
+ * @str: the array of characters
+ */
+void to_lowercase(char* str) {
+  // Because of how ASCII works, we can add 25 to lower any uppercase char
+  for (int i = 0; str[i] != '\0'; i++) {
+    if (str[i] >= 'A' && str[i] <= 'Z')
+      str[i] += 32;
+  }
 }
 
 /*************************************************************
@@ -79,7 +93,7 @@ typedef struct MemoryStruct {
 } MemoryStruct;
 
 // Function to read a file and return its contents
-content read_file(char* filename) {
+char* read_file(char* filename) {
   FILE* file = fopen(filename, "r");
   // error handling for FNF / wrong file name
   if (!file) {
@@ -100,7 +114,7 @@ content read_file(char* filename) {
   }
 
   // dynamically allocate memory
-  content buffer = (content)malloc(filesize + 1);
+  char* buffer = (char*)malloc(filesize + 1);
   // error handling for memory
   if (!buffer) {
     fprintf(stderr, "Error: Memory allocation failed for file %s\n", filename);
@@ -152,7 +166,7 @@ static size_t WriteMemoryCallback(void* contents,
 }
 
 // Function to fetch HTML content from a URL as a char*
-content fetch(url url_to_fetch) {
+char* fetch(url url_to_fetch) {
   CURL* curl_handle;
   CURLcode res;
   // initialize empty chunk to hold new data
@@ -194,7 +208,7 @@ content fetch(url url_to_fetch) {
 
 // WRITE FUNCTION
 // takes in char content in the memory
-int write_file(char* filename, content data) {
+int write_file(char* filename, char* data) {
   FILE* file = fopen(filename, "w");
   // error handling
   if (!file) {
@@ -214,41 +228,6 @@ int write_file(char* filename, content data) {
 
   fclose(file);
   return 0;  // success
-}
-
-// for case-insensitive comparison
-void to_lower(char* str) {
-  for (int i = 0; str[i]; i++) {
-    str[i] = tolower(str[i]);
-  }
-}
-
-occurrence_report count_occurrences(content html) {
-  // Read important words
-  content imp_words_file = read_file(important_words);
-  if (!imp_words_file) {
-    fprintf(stderr, "Error: Could not load important words\n");
-    exit(EXIT_FAILURE);  // or return empty occurrence_report
-  }
-
-  // Split important words into array
-  char* important_words_array[25];  // assume max 25 words
-  int important_word_count = 0;
-  // splits important words separated by '\n'
-  char* token = strtok(imp_words_file, "\n");
-  while (token != NULL) {
-    // strdup(token) makes a copy of the word and store in imp_words_array
-    important_words_array[important_word_count++] = strdup(token);
-    token = strtok(NULL, "\n");
-    // After this our array looks like this, e.g: [0]: "data", [1]: "science",
-    // etc.
-  }
-
-  // Initialize occurrence report
-  occurrence_report report;
-  // allocate memory for an array of word_count struct
-  // each word_count has: the imp word, count (# of times it appeared)
-  report.word_counts = malloc(sizeof(word_count) * important_word_count);
 }
 
 /*************************************************************
@@ -369,27 +348,30 @@ void free_url_queue(url_queue* queue) {
  * @word : important words array
  * @return: the occurrence report
  */
-occurrence_report init_occurrence_report(word* word) {
+occurrence_report* init_occurrence_report() {
+  word* words = get_impwords();
+
   // Initialize a blank report
-  occurrence_report report;
-  report.word_counts = NULL;
+  occurrence_report* report =
+      (occurrence_report*)malloc(sizeof(occurrence_report));
+  report->word_counts = NULL;
   // We don't want a null report, so we can check if a report is
   // null and catch an error that way.
 
-  if (pthread_mutex_init(&report.lock, NULL) != 0) {
+  if (pthread_mutex_init(&report->lock, NULL) != 0) {
     // Mutex failed to initialize, return it empty
     return report;
   }
 
   // Count for malloc
   int count = 0;
-  while (word[count] != NULL && word[count][0] != '\0') {
+  while (words[count] != NULL && words[count][0] != '\0') {
     count++;
   }
 
   // malloc the tracked words by count. note delimiter
-  report.word_counts = malloc(sizeof(word_count) * (count + 1));
-  if (report.word_counts == NULL) {
+  report->word_counts = malloc(sizeof(word_count) * (count + 1));
+  if (report->word_counts == NULL) {
     // malloc failed
     return report;
   }
@@ -397,13 +379,13 @@ occurrence_report init_occurrence_report(word* word) {
   // Populate malloc with word and 0 count
   int failure = -1;  // track presence of failure and where
   for (int i = 0; i < count; i++) {
-    report.word_counts[i].word = strdup(word[i]);
-    if (report.word_counts[i].word == NULL) {
+    report->word_counts[i].word = strdup(words[i]);
+    if (report->word_counts[i].word == NULL) {
       // strdup failed
       failure = i;
       break;
     }
-    report.word_counts[i].count = 0;
+    report->word_counts[i].count = 0;
   }
 
   // If strdup failed, free successful allocations up to fail
@@ -411,18 +393,21 @@ occurrence_report init_occurrence_report(word* word) {
   if (failure != -1) {
     for (int k = 0; k < failure; k++) {
       // freeing the words
-      free(report.word_counts[k].word);
+      free(report->word_counts[k].word);
     }
     // free array, return empty report
-    free(report.word_counts);
-    report.word_counts = NULL;
-    return report;
+    free(report->word_counts);
+    report->word_counts = NULL;
+    free(report);
+    free(words);
+    return NULL;
   }
 
   // Delimiter for the word_counts in the report.
-  report.word_counts[count].word = NULL;
-  report.word_counts[count].count = 0;  // Not needed but to avoid garbage
+  report->word_counts[count].word = NULL;
+  report->word_counts[count].count = 0;  // Not needed but to avoid garbage
 
+  free(words);
   return report;
 }
 
@@ -433,29 +418,29 @@ occurrence_report init_occurrence_report(word* word) {
  * @localor: the individual occurrence report a thread is currently handling
  * @return: 0 if successful, -1 otherwise
  */
-int update_occurrence_report(occurrence_report globalor,
-                             occurrence_report localor) {
+int update_occurrence_report(occurrence_report* globalor,
+                             occurrence_report* localor) {
   // Lock global report, check for errors
-  if (pthread_mutex_lock(&globalor.lock) != 0) {
+  if (pthread_mutex_lock(&globalor->lock) != 0) {
     // failed to lock
     return -1;
   }
 
   // Check if any reports returned NULL
-  if (globalor.word_counts == NULL || localor.word_counts == NULL) {
-    pthread_mutex_unlock(&globalor.lock);
+  if (globalor->word_counts == NULL || localor->word_counts == NULL) {
+    pthread_mutex_unlock(&globalor->lock);
     return -1;
   }
 
   // All reports should track all impwords in the same order.
   int i = 0;
-  while (globalor.word_counts[i].word != NULL) {
-    globalor.word_counts[i].count += localor.word_counts[i].count;
+  while (globalor->word_counts[i].word != NULL) {
+    globalor->word_counts[i].count += localor->word_counts[i].count;
     i++;
   }
 
   // Release the thread locks.
-  pthread_mutex_unlock(&globalor.lock);
+  pthread_mutex_unlock(&globalor->lock);
 
   return 0;  // success
 }
@@ -464,31 +449,22 @@ int update_occurrence_report(occurrence_report globalor,
  * free_occurrence_report - frees the occurrence report struct
  * @or: the report to be freed
  */
-void free_occurence_report(occurrence_report or) {
+void free_occurence_report(occurrence_report* or) {
   // Free each word first
   int i = 0;
-  while (or.word_counts[i].word != NULL) {
-    free(or.word_counts[i].word);
+  while (or->word_counts[i].word != NULL) {
+    free(or->word_counts[i].word);
     i++;
   }
 
   // Free the word counts array
-  free(or.word_counts);
+  free(or->word_counts);
 
   // Destroy the lock
-  pthread_mutex_destroy(&or.lock);
-}
+  pthread_mutex_destroy(&or->lock);
 
-/** HELPER FUNCTION
- * to_lowercase - lowers each character in a character array
- * @str: the array of characters
- */
-void to_lowercase(char* str) {
-  // Because of how ASCII works, we can add 25 to lower any uppercase char
-  for (int i = 0; str[i] != '\0'; i++) {
-    if (str[i] >= 'A' && str[i] <= 'Z')
-      str[i] += 32;
-  }
+  // Free or
+  free(or);
 }
 
 /**
@@ -496,31 +472,11 @@ void to_lowercase(char* str) {
  * @html: the stuff to process
  * @return: the occurrence report with updated counts
  */
-occurrence_report count_occurrences_2(content html) {
-  // Read important words
-  content imp_words_file = read_file(important_words);
-  if (!imp_words_file) {
-    fprintf(stderr, "Error: Could not load important words\n");
-    exit(EXIT_FAILURE);  // or return empty occurrence_report
-  }
-
-  // Split important words into array
-  char* important_words_array[25];  // assume max 25 words
-  int important_word_count = 0;
-  // splits important words separated by '\n'
-  char* wordtoken = strtok(imp_words_file, "\n");
-  while (wordtoken != NULL) {
-    // strdup(token) makes a copy of the word and store in imp_words_array
-    important_words_array[important_word_count++] = strdup(wordtoken);
-    wordtoken = strtok(NULL, "\n");
-    // After this our array looks like this, e.g: [0]: "data", [1]: "science",
-    // etc.
-  }
-
+occurrence_report* count_occurrences(char* html) {
   // Initialize an occurrence report with the important words
-  occurrence_report report = init_occurrence_report(important_words_array);
+  occurrence_report* report = init_occurrence_report();
 
-  if (report.word_counts == NULL || html == NULL) {
+  if (report->word_counts == NULL || html == NULL) {
     printf("Error: bad report or html");
     // TODO: FURTHER ERROR HANDLING
     fprintf(stderr, "Error: report or html is null");
@@ -541,10 +497,10 @@ occurrence_report count_occurrences_2(content html) {
     to_lowercase(token);
 
     // iterate through important words
-    for (int i = 0; report.word_counts[i].word != NULL; i++) {
+    for (int i = 0; report->word_counts[i].word != NULL; i++) {
       // if we get a hit
-      if (strcmp(token, report.word_counts[i].word) == 0) {
-        report.word_counts[i].count++;
+      if (strcmp(token, report->word_counts[i].word) == 0) {
+        report->word_counts[i].count++;
         break;
       }
     }
@@ -561,6 +517,36 @@ occurrence_report count_occurrences_2(content html) {
 }
 
 /***********************************************************/
+
+/*************************************************************
+ * IMPWORDS (TODO)
+ ************************************************************/
+void init_impwords_file() {}
+
+word* get_impwords() {
+  // Read important words
+  char* impwords_content = read_file(impwords_file);
+  if (!impwords_content) {
+    fprintf(stderr, "Error: Could not load important words\n");
+    exit(EXIT_FAILURE);  // TODO: return empty occurrence_report
+  }
+
+  // Split important words into array
+  char** important_words_array =
+      (char**)malloc(25 * sizeof(char*));  // assume max 25 words
+  int important_word_count = 0;
+  // splits important words separated by '\n'
+  char* wordtoken = strtok(impwords_content, "\n");
+  while (wordtoken != NULL) {
+    // strdup(token) makes a copy of the word and store in imp_words_array
+    important_words_array[important_word_count++] = strdup(wordtoken);
+    wordtoken = strtok(NULL, "\n");
+    // After this our array looks like this, e.g: [0]: "data", [1]: "science",
+    // etc.
+  }
+
+  return important_words_array;
+}
 
 /*************************************************************
  * MAIN METHOD
@@ -614,13 +600,13 @@ void test_Queue() {
 
 void test_read_file() {
   // === TESTING read_file() === //
-  content file_data = read_file(input_file);
+  char* file_data = read_file(urls_file);
   if (file_data) {
-    printf("\n--- Contents of %s ---\n", input_file);
+    printf("\n--- Contents of %s ---\n", urls_file);
     printf("%s\n", file_data);
     free(file_data);  // free memory after use
   } else {
-    printf("Failed to read file: %s\n", input_file);
+    printf("Failed to read file: %s\n", urls_file);
   }
 }
 
@@ -628,7 +614,7 @@ void test_fetch() {
   // === TESTING fetch() === //
   url test_url =
       "https://google.com";  // we will replace this with URL from 'urls.txt'
-  content html_data = fetch(test_url);
+  char* html_data = fetch(test_url);
   if (html_data) {
     printf("\n--- Fetched HTML from %s ---\n", test_url);
     printf("%.1000s\n", html_data);  // only print first 500 chars for testing

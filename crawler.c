@@ -549,15 +549,62 @@ word* get_impwords() {
 }
 
 /*************************************************************
+ * THREADS
+ ************************************************************/
+typedef struct thread_args_st {
+  url_queue* queue;
+  occurrence_report* globalor;
+} thread_args;
+
+void* thread_worker(void* args) {
+  thread_args* threadargs = (thread_args*)args;
+
+  while (true) {
+    url url = dequeue_url(threadargs->queue);
+    if (url == NULL)
+      break;
+
+    char* html = fetch(url);
+    write_file('page.html', html);
+    occurrence_report* localor = count_occurrences(html);
+    update_occurrence_report(threadargs->globalor, localor);
+  }
+}
+
+/*************************************************************
  * MAIN METHOD
  ************************************************************/
 int main(int argc, char* argv[]) {
   printf("=== RUC Web Crawler ===\n");
 
   // Initialize queue
+  url_queue* queue = init_url_queue();
+
   // Read input file and keep populating the queues
+  char* urls = read_file(urls_file);
+  char* url = strtok(urls, "\n");
+  while (url != NULL) {
+    enqueue_url(queue, url);
+    url = strtok(NULL, "\n");
+  }
+  free(urls);
+
   // Make pthreads, start them and join to wait
+  thread_args threadargs = {
+      .queue = queue,
+      .globalor = init_occurrence_report(),
+  };
+  pthread_t threads[threads_count];
+  for (int i = 0; i < threads_count; i++) {
+    pthread_create(&threads[i], NULL, thread_worker, (void*)&threadargs);
+  }
+  for (int i = 0; i < 10; i++) {
+    pthread_join(threads[i], NULL);
+  }
+
   // Free EVERYTHING (make sure no memory leaks!)
+  free_url_queue(threadargs.queue);
+  free_occurence_report(threadargs.globalor);
 
   return EXIT_SUCCESS;
 }

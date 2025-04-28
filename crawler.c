@@ -218,7 +218,7 @@ occurrence_report count_occurrences(content html) {
   // Read important words
   content imp_words_file = read_file(important_words);
   if (!imp_words_file) {
-    fprintf(stderr, "Error: Could not load important words\n");
+    fprintf(stderr, "Error: Could not load important words.\n");
     exit(EXIT_FAILURE); // or return empty occurrence_report
   }
 
@@ -240,6 +240,49 @@ occurrence_report count_occurrences(content html) {
   // allocate memory for an array of word_count struct
   // each word_count has: the imp word, count (# of times it appeared)
   report.word_counts = malloc(sizeof(word_count) * important_word_count);
+  // initialize lock to protect (because multithreading)
+  pthread_mutex_init(&(report.lock), NULL);
+
+  // for each imp_word: set its word name, set count to 0
+  for(int i=0; i<important_word_count; i++) {
+    report.word_counts[i].word = important_words_array[i];
+    report.word_counts[i].count = 0;
+
+  }
+
+  // Tokenize html content into words
+
+  // make a copy of html string because strtok modifies the org string
+  char* html_copy = strdup(html); 
+  // split on common html separators, these chars are not part of words
+  char* word = strtok(html_copy, " \n\t<>/=\"'-_.:,;!?");
+  while (word != NULL) { // loop thru each word
+    char lower_word[256]; // initialize local buffer
+    // copy the word into buffer, lower_word.
+    strncpy(lower_word, word, sizeof(lower_word) - 1);
+    lower_word[sizeof(lower_word) - 1] = '\0'; // null terminate the buffer
+    to_lowercase(lower_word); // convert to lower case
+
+    // Compare to important words
+    for (int i = 0; i < important_word_count; i++) {
+      if (strcmp(lower_word, important_words_array[i]) == 0) {
+      // if the word matches to imp_word, lock the mutex (to avoid thread race conditions)
+      // need to lock to avoid multiple threads updating the same word
+        pthread_mutex_lock(&(report.lock));
+        report.word_counts[i].count++;    // increment count
+        pthread_mutex_unlock(&(report.lock));  // unlock mutex
+      }
+    }
+
+    // get the next word from html
+    word = strtok(NULL, " \n\t<>/=\"'-_.:,;!?");
+  }
+
+  // free memory
+  free(html_copy);
+  free(imp_words_file);
+
+  return report;  // return the filled report
 }
 
 

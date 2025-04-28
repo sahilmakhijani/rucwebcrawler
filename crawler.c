@@ -1,17 +1,17 @@
+#include <ctype.h>
 #include <curl/curl.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 // Config (Global Variables)
 char* input_file = "urls.txt";
 char* output_directory = "./";
 char* important_words = "important_words.txt";
 int no_of_threads = 10;
- 
+
 // Structs
 typedef char* url;
 typedef struct url_queue_node_struct {
@@ -46,11 +46,9 @@ int update_occurrence_report(occurrence_report globalor,
                              occurrence_report localor);
 void free_occurence_report(occurrence_report or);
 
-typedef char* url;
 typedef char* content;
 content read_file(char* filename);
 content fetch(url url);
-
 occurrence_report count_occurrences(content html);
 int write_file(char* filename, content);
 
@@ -58,34 +56,32 @@ void init_impwords_file();  // (e.g., data, science, algorithm)
 
 void* thread_worker(void* args);  // args[0] = queue and args[1] = globalor
 
-
-
 // Implementation
 // TODO
 
-// Implementation
-// TODO
+/*************************************************************
+ * FILE OPS
+ ************************************************************/
 
-/** FILE OPS */
-// Memory struct 
+// Memory struct
 typedef struct MemoryStruct {
-  char* memory;  // pointer to hold html data
+  char* memory;
   size_t size;
 } MemoryStruct;
 
 // Function to read a file and return its contents
 content read_file(char* filename) {
   FILE* file = fopen(filename, "r");
+  // error handling for FNF / wrong file name
   if (!file) {
-    // error handling FNF / wrong file name
     fprintf(stderr, "Error: Could not open file %s\n", filename);
     return NULL;
   }
 
-  // to get the size of the file
+  // get the size of the file
   fseek(file, 0, SEEK_END);
-  long filesize = ftell(file); //ftell gets the current position (size)
-  rewind(file); // takes the pointer back to the top of file
+  long filesize = ftell(file);
+  rewind(file);
 
   // error handling for empty file
   if (filesize <= 0) {
@@ -95,9 +91,9 @@ content read_file(char* filename) {
   }
 
   // dynamically allocate memory
-  content buffer = (content)malloc(filesize + 1); // 1 extra byte for '\0' terminator
+  content buffer = (content)malloc(filesize + 1);
+  // error handling for memory
   if (!buffer) {
-    // memory error handling
     fprintf(stderr, "Error: Memory allocation failed for file %s\n", filename);
     fclose(file);
     return NULL;
@@ -105,31 +101,34 @@ content read_file(char* filename) {
 
   // reads the entire file into buffer
   size_t read_size = fread(buffer, 1, filesize, file);
+  // error handling if read fails
   if (read_size != filesize) {
-    // error handling if read fails
     fprintf(stderr, "Error: Failed to read complete file %s\n", filename);
-    free(buffer); // free memory
+    free(buffer);
     fclose(file);
     return NULL;
   }
 
-  buffer[filesize] = '\0'; // add null terminator at the end of buffer
+  buffer[filesize] = '\0';
 
-  fclose(file); // close file
-  return buffer; // return char content
+  fclose(file);
+  return buffer;
 }
 
-// Callback function for libcurl 
+// Callback function for libcurl
 // Helps curl store downloaded data into memory
-static size_t WriteMemoryCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-  size_t real_size = size * nmemb; // to get the # of bytes
+static size_t WriteMemoryCallback(void* contents,
+                                  size_t size,
+                                  size_t nmemb,
+                                  void* userp) {
+  size_t real_size = size * nmemb;  // to get the # of bytes
   // cast back userp to MemoryStruct*
   struct MemoryStruct* mem = (struct MemoryStruct*)userp;
 
   // reallocate the buffer to hold new + previous data
   char* ptr = realloc(mem->memory, mem->size + real_size + 1);
+  // error handling for memory
   if (!ptr) {
-    // memory error handling
     fprintf(stderr, "Error: Not enough memory (realloc returned NULL)\n");
     return 0;
   }
@@ -139,9 +138,9 @@ static size_t WriteMemoryCallback(void* contents, size_t size, size_t nmemb, voi
   memcpy(&(mem->memory[mem->size]), contents, real_size);
   // update the size of buffer
   mem->size += real_size;
-  mem->memory[mem->size] = '\0'; // null terminate
-  return real_size; // return the # of bytes we read
-} 
+  mem->memory[mem->size] = '\0';
+  return real_size;
+}
 
 // Function to fetch HTML content from a URL as a char*
 content fetch(url url_to_fetch) {
@@ -154,8 +153,8 @@ content fetch(url url_to_fetch) {
 
   // starts a new curl easy session
   curl_handle = curl_easy_init();
+  // error handling if curl failed to initialize
   if (!curl_handle) {
-    // error handling if curl failed to initialize
     fprintf(stderr, "Error: Failed to initialize curl\n");
     return NULL;
   }
@@ -170,32 +169,33 @@ content fetch(url url_to_fetch) {
 
   // HTTP GET request
   res = curl_easy_perform(curl_handle);
+  // if something goes wrong, we free the memory and cleanup
   if (res != CURLE_OK) {
-    // if something goes wrong, we free the memory and cleanup
-    fprintf(stderr, "Error: curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+    fprintf(stderr, "Error: curl_easy_perform() failed: %s\n",
+            curl_easy_strerror(res));
     free(chunk.memory);
-    curl_easy_cleanup(curl_handle); 
+    curl_easy_cleanup(curl_handle);
     return NULL;
   }
 
   curl_easy_cleanup(curl_handle);
 
-  return chunk.memory; // returns the downloaded HTML content
+  return chunk.memory;
 }
 
 // WRITE FUNCTION
 // takes in char content in the memory
 int write_file(char* filename, content data) {
-  FILE* file = fopen(filename, "w"); 
+  FILE* file = fopen(filename, "w");
+  // error handling
   if (!file) {
-    // error handling 
     fprintf(stderr, "Error: Could not open file %s for writing\n", filename);
     return -1;
   }
 
   // gets the length of data we want to write
   size_t data_length = strlen(data);
-  // size of each item is 1 bytes, how many items to write, and file is where to write
+  // size of each item is 1 bytes, how many items to write, and file
   size_t written = fwrite(data, 1, data_length, file);
   if (written != data_length) {
     fprintf(stderr, "Error: Failed to write complete data to %s\n", filename);
@@ -204,7 +204,7 @@ int write_file(char* filename, content data) {
   }
 
   fclose(file);
-  return 0; // success
+  return 0;  // success
 }
 
 // for case-insensitive comparison
@@ -219,11 +219,11 @@ occurrence_report count_occurrences(content html) {
   content imp_words_file = read_file(important_words);
   if (!imp_words_file) {
     fprintf(stderr, "Error: Could not load important words\n");
-    exit(EXIT_FAILURE); // or return empty occurrence_report
+    exit(EXIT_FAILURE);  // or return empty occurrence_report
   }
 
   // Split important words into array
-  char* important_words_array[25]; // assume max 25 words
+  char* important_words_array[25];  // assume max 25 words
   int important_word_count = 0;
   // splits important words separated by '\n'
   char* token = strtok(imp_words_file, "\n");
@@ -231,9 +231,9 @@ occurrence_report count_occurrences(content html) {
     // strdup(token) makes a copy of the word and store in imp_words_array
     important_words_array[important_word_count++] = strdup(token);
     token = strtok(NULL, "\n");
-    // After this our array looks like this, e.g: [0]: "data", [1]: "science", etc.
+    // After this our array looks like this, e.g: [0]: "data", [1]: "science",
+    // etc.
   }
-
 
   // Initialize occurrence report
   occurrence_report report;
@@ -242,39 +242,15 @@ occurrence_report count_occurrences(content html) {
   report.word_counts = malloc(sizeof(word_count) * important_word_count);
 }
 
-
-
-// -- MAIN FUNCTION -- //
+/*************************************************************
+ * MAIN FUNCTION
+ ************************************************************/
 
 int main(int argc, char* argv[]) {
   printf("=== RUC Web Crawler ===\n");
 
   // Initialize queue
   // Read input file and keep populating the queues
-
-  // === TESTING read_file() === //
-  content file_data = read_file(input_file);
-  if (file_data) {
-    printf("\n--- Contents of %s ---\n", input_file);
-    printf("%s\n", file_data);
-    free(file_data); // free memory after use
-  } else {
-    printf("Failed to read file: %s\n", input_file);
-  }
-
-  // === TESTING fetch() === //
-  url test_url = "https://google.com"; // we will replace this with URL from 'urls.txt' 
-  content html_data = fetch(test_url);
-  if (html_data) {
-    printf("\n--- Fetched HTML from %s ---\n", test_url);
-    printf("%.1000s\n", html_data); // only print first 500 chars for testing
-    free(html_data); // free memory after use
-  } else { 
-    printf("Failed to fetch URL: %s\n", test_url);
-  }
-
-
-
   // Make pthreads, start them and join to wait
   // Free EVERYTHING (make sure no memory leaks!)
 

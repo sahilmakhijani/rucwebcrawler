@@ -94,12 +94,12 @@ occurrence_report init_occurrence_report(word* word){
   }
 
   // Populate malloc with word and 0 count
-  int j = -1;
+  int failure = -1; //track presence of failure and where
   for (int i = 0; i < count; i++){
     report.word_counts[i].word = strdup(word[i]);
     if(report.word_counts[i].word == NULL){
       // strdup failed
-      j = i;
+      failure = i;
       break;
     }
     report.word_counts[i].count = 0;
@@ -107,8 +107,8 @@ occurrence_report init_occurrence_report(word* word){
 
   // If strdup failed, free successful allocations up to fail
   // and return empty report.
-  if (j != -1){
-    for (int k = 0; k < j; k++){
+  if (failure != -1){
+    for (int k = 0; k < failure; k++){
       // freeing the words
       free(report.word_counts[k].word);
     }
@@ -134,15 +134,14 @@ occurrence_report init_occurrence_report(word* word){
  */
 int update_occurrence_report(occurrence_report globalor, occurrence_report localor){
   
-  // Lock both locks, check for errors
-  if (pthread_mutex_lock(&localor.lock) != 0) {
-    pthread_mutex_unlock(&globalor.lock);
+  // Lock global report, check for errors
+  if (pthread_mutex_lock(&globalor.lock) != 0) {
+    // failed to lock
     return -1;
   }
 
   // Check if any reports returned NULL
   if (globalor.word_counts == NULL || localor.word_counts == NULL) {
-    pthread_mutex_unlock(&localor.lock);
     pthread_mutex_unlock(&globalor.lock);
     return -1;
   }
@@ -157,7 +156,6 @@ int update_occurrence_report(occurrence_report globalor, occurrence_report local
 
   // Release the thread locks.
   pthread_mutex_unlock(&globalor.lock);
-  pthread_mutex_unlock(&localor.lock); 
   
   return 0; // success
 }
@@ -179,6 +177,73 @@ void free_occurence_report(occurrence_report or){
 
   // Destroy the lock
   pthread_mutex_destroy(&or.lock);
+
+}
+
+/** HELPER FUNCTION
+ * to_lowercase - lowers each character in a character array
+ * @str: the array of characters
+ */
+void to_lowercase(char *str){
+  // Because of how ASCII works, we can add 25 to lower any uppercase char
+  for(int i = 0; str[i] != '\0'; i++){
+    if(str[i] >= 'A' && str[i] <= 'Z')
+      str[i] += 32;
+  }
+}
+
+
+/**
+ * count_occurrences - processes html, counts words
+ * @html: the stuff to process
+ * @return: the occurrence report with updated counts
+ */
+occurrence_report count_occurrences(content html){
+  
+  // Initialize an occurrence report with the important words
+  occurrence_report report = init_occurrence_report(important_words);
+
+  if (report.word_counts == NULL || html == NULL){
+    printf("Error: bad report or html");
+    //TODO: FURTHER ERROR HANDLING
+    fprintf(stderr, "Error: report or html is null");
+    exit(EXIT_FAILURE);
+  }
+
+  // strtok_r for thread safe string tokenizer
+  char* current; // current position in the html
+
+  // some delimiters but it's ok not to be super exact
+  char* delimiters = ".,-\"';:?!@#/&*()[]{}/\\_~+= \t\r\n";
+
+  // first token
+  char* token = strtok_r(html, delimiters, &current);
+  
+
+  while(token != NULL){
+    // lowercase the word
+    to_lowercase(token);
+
+    // iterate through important words
+    for(int i = 0; report.word_counts[i].word != NULL; i++){
+      // if we get a hit
+      if(strcmp(token, report.word_counts[i].word) == 0){
+        report.word_counts[i].count++;
+        break;
+      }
+    }
+
+    // next token
+    token = strtok_r(current, delimiters, &current);
+
+  }
+
+  // free some local pointers
+  free(token);
+  free(delimiters);
+  free(current);
+  
+  return report;
 
 }
 

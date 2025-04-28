@@ -42,7 +42,6 @@ int enqueue_url(url_queue* queue, url data);
 url dequeue_url(url_queue* queue);
 void free_url_queue(url_queue* queue);
 bool isEmpty(url_queue* queue);
-void test_Queue();
 
 occurrence_report init_occurrence_report(word* word);
 int update_occurrence_report(occurrence_report globalor,
@@ -402,4 +401,30 @@ void test_Queue() {
   }
 
   free_url_queue(queue);
+}
+
+void test_read_file() {
+  // === TESTING read_file() === //
+  content file_data = read_file(input_file);
+  if (file_data) {
+    printf("\n--- Contents of %s ---\n", input_file);
+    printf("%s\n", file_data);
+    free(file_data);  // free memory after use
+  } else {
+    printf("Failed to read file: %s\n", input_file);
+  }
+}
+
+void test_fetch() {
+  // === TESTING fetch() === //
+  url test_url =
+      "https://google.com";  // we will replace this with URL from 'urls.txt'
+  content html_data = fetch(test_url);
+  if (html_data) {
+    printf("\n--- Fetched HTML from %s ---\n", test_url);
+    printf("%.1000s\n", html_data);  // only print first 500 chars for testing
+    free(html_data);                 // free memory after use
+  } else {
+    printf("Failed to fetch URL: %s\n", test_url);
+  }
 }

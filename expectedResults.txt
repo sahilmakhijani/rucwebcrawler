@@ -1,0 +1,10 @@
+tree 1
+Data 8
+binary 4
+Structures 6
+Hello! 0
+search 2
+Lil Peep 0
+order 3
+trees 6
+data structures 6

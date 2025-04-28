@@ -166,7 +166,7 @@ static size_t WriteMemoryCallback(void* contents,
 }
 
 // Function to fetch HTML content from a URL as a char*
-char* fetch(url url_to_fetch) {
+char* fetch(url url) {
   CURL* curl_handle;
   CURLcode res;
   // initialize empty chunk to hold new data
@@ -182,7 +182,7 @@ char* fetch(url url_to_fetch) {
     return NULL;
   }
   // sets the URL to fetch
-  curl_easy_setopt(curl_handle, CURLOPT_URL, url_to_fetch);
+  curl_easy_setopt(curl_handle, CURLOPT_URL, url);
   // this tells curl to use our WriteMemCallback to store new data
   curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
   // gives curl a pointer to chunk to write new data
@@ -509,10 +509,6 @@ occurrence_report* count_occurrences(char* html) {
     token = strtok_r(current, delimiters, &current);
   }
 
-  // free some local pointers
-  free(token);
-  free(current);
-
   return report;
 }
 
@@ -532,19 +528,22 @@ word* get_impwords() {
   }
 
   // Split important words into array
-  char** important_words_array =
-      (char**)malloc(25 * sizeof(char*));  // assume max 25 words
+  word* important_words_array =
+      (word*)malloc(26 * sizeof(word));  // assume max 25 words
   int important_word_count = 0;
   // splits important words separated by '\n'
-  char* wordtoken = strtok(impwords_content, "\n");
-  while (wordtoken != NULL) {
+  char* token = strtok(impwords_content, "\n");
+  while (token != NULL) {
     // strdup(token) makes a copy of the word and store in imp_words_array
-    important_words_array[important_word_count++] = strdup(wordtoken);
-    wordtoken = strtok(NULL, "\n");
+    important_words_array[important_word_count++] = strdup(token);
+    token = strtok(NULL, "\n");
     // After this our array looks like this, e.g: [0]: "data", [1]: "science",
     // etc.
   }
 
+  important_words_array[important_word_count] = NULL;
+
+  free(impwords_content);
   return important_words_array;
 }
 
@@ -565,7 +564,7 @@ void* thread_worker(void* args) {
       break;
 
     char* html = fetch(url);
-    write_file('page.html', html);
+    write_file("page.html", html);
     occurrence_report* localor = count_occurrences(html);
     update_occurrence_report(threadargs->globalor, localor);
   }
@@ -587,7 +586,6 @@ int main(int argc, char* argv[]) {
     enqueue_url(queue, url);
     url = strtok(NULL, "\n");
   }
-  free(urls);
 
   // Make pthreads, start them and join to wait
   thread_args threadargs = {
@@ -603,6 +601,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Free EVERYTHING (make sure no memory leaks!)
+  free(urls);
   free_url_queue(threadargs.queue);
   free_occurence_report(threadargs.globalor);
 

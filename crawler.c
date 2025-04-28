@@ -583,6 +583,8 @@ int main(int argc, char* argv[]) {
   char* urls = read_file(urls_file);
   char* url = strtok(urls, "\n");
   while (url != NULL) {
+    url[strcspn(url, "\n")] = 0;
+    url[strcspn(url, "\r\n")] = 0;
     enqueue_url(queue, url);
     url = strtok(NULL, "\n");
   }
@@ -596,7 +598,7 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < threads_count; i++) {
     pthread_create(&threads[i], NULL, thread_worker, (void*)&threadargs);
   }
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < threads_count; i++) {
     pthread_join(threads[i], NULL);
   }
 

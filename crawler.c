@@ -58,8 +58,15 @@ void init_impwords_file();  // (e.g., data, science, algorithm)
 
 void* thread_worker(void* args);  // args[0] = queue and args[1] = globalor
 
-// Implementation
-// TODO
+// helper
+char* strdup(const char* str) {
+  int n = strlen(str) + 1;
+  char* dup = malloc(n);
+  if (dup) {
+    strcpy(dup, str);
+  }
+  return dup;
+}
 
 /*************************************************************
  * FILE OPS
@@ -489,9 +496,29 @@ void to_lowercase(char* str) {
  * @html: the stuff to process
  * @return: the occurrence report with updated counts
  */
-occurrence_report count_occurrences(content html) {
+occurrence_report count_occurrences_2(content html) {
+  // Read important words
+  content imp_words_file = read_file(important_words);
+  if (!imp_words_file) {
+    fprintf(stderr, "Error: Could not load important words\n");
+    exit(EXIT_FAILURE);  // or return empty occurrence_report
+  }
+
+  // Split important words into array
+  char* important_words_array[25];  // assume max 25 words
+  int important_word_count = 0;
+  // splits important words separated by '\n'
+  char* wordtoken = strtok(imp_words_file, "\n");
+  while (wordtoken != NULL) {
+    // strdup(token) makes a copy of the word and store in imp_words_array
+    important_words_array[important_word_count++] = strdup(wordtoken);
+    wordtoken = strtok(NULL, "\n");
+    // After this our array looks like this, e.g: [0]: "data", [1]: "science",
+    // etc.
+  }
+
   // Initialize an occurrence report with the important words
-  occurrence_report report = init_occurrence_report(important_words);
+  occurrence_report report = init_occurrence_report(important_words_array);
 
   if (report.word_counts == NULL || html == NULL) {
     printf("Error: bad report or html");
@@ -528,7 +555,6 @@ occurrence_report count_occurrences(content html) {
 
   // free some local pointers
   free(token);
-  free(delimiters);
   free(current);
 
   return report;

@@ -47,7 +47,8 @@ occurrence_report* init_occurrence_report();
 occurrence_report* count_occurrences(char* html);
 int update_occurrence_report(occurrence_report* globalor,
                              occurrence_report* localor);
-void free_occurence_report(occurrence_report* or);
+void free_occurrence_report(occurrence_report* or);
+void log_occurrence_report(occurrence_report* or);
 
 char* read_file(char* filename);
 char* fetch(url url);
@@ -449,7 +450,7 @@ int update_occurrence_report(occurrence_report* globalor,
  * free_occurrence_report - frees the occurrence report struct
  * @or: the report to be freed
  */
-void free_occurence_report(occurrence_report* or) {
+void free_occurrence_report(occurrence_report* or) {
   // Free each word first
   int i = 0;
   while (or->word_counts[i].word != NULL) {
@@ -510,6 +511,14 @@ occurrence_report* count_occurrences(char* html) {
   }
 
   return report;
+}
+
+void log_occurrence_report(occurrence_report* or) {
+  word_count* wc = or->word_counts;
+  while (wc != NULL && wc->word != NULL && wc->word[0] != '\0') {
+    printf("%s %d\n", wc->word, wc->count);
+    wc++;
+  }
 }
 
 /***********************************************************/
@@ -602,10 +611,13 @@ int main(int argc, char* argv[]) {
     pthread_join(threads[i], NULL);
   }
 
+  // Log occurrence report
+  log_occurrence_report(threadargs.globalor);
+
   // Free EVERYTHING (make sure no memory leaks!)
   free(urls);
   free_url_queue(threadargs.queue);
-  free_occurence_report(threadargs.globalor);
+  free_occurrence_report(threadargs.globalor);
 
   return EXIT_SUCCESS;
 }

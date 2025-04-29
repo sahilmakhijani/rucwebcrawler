@@ -72,10 +72,10 @@ char* strdup(const char* str) {
   return dup;
 }
 
-bool ourcmp(char* str1, char* str2) {
-  for (int i = 0; str1[i] != '\0'; i++) {
-    char char1 = str1[i];
-    char char2 = str2[i];
+bool startswith(char* str, char* prefix) {
+  for (int i = 0; prefix[i] != '\0'; i++) {
+    char char1 = prefix[i];
+    char char2 = str[i];
     if (char1 >= 'A' && char1 <= 'Z')
       char1 += 32;
     if (char2 >= 'A' && char2 <= 'Z')
@@ -505,7 +505,7 @@ occurrence_report* count_occurrences(char* html) {
 
     while (token != NULL) {
       // if we get a hit
-      if (ourcmp(report->word_counts[i].word, current)) {
+      if (startswith(current, report->word_counts[i].word)) {
         report->word_counts[i].count++;
         break;
       }

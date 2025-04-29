@@ -17,6 +17,7 @@ typedef char* url;
 typedef struct url_queue_node_struct {
   url url;
   struct url_queue_node_struct* next;
+  int index;
 } url_queue_node;
 typedef struct url_queue_struct {
   url_queue_node* head;
@@ -39,7 +40,7 @@ typedef struct occurrence_report_struct {
 url_queue* init_url_queue();
 url_queue_node* init_queue_node(url data);
 int enqueue_url(url_queue* queue, url data);
-url dequeue_url(url_queue* queue);
+url_queue_node* dequeue_url(url_queue* queue);
 void free_url_queue(url_queue* queue);
 bool isEmpty(url_queue* queue);
 
@@ -257,6 +258,7 @@ url_queue_node* init_queue_node(url data) {
   url_queue_node* node = (url_queue_node*)malloc(sizeof(url_queue_node));
   node->url = data;
   node->next = NULL;
+  node->index = -1;
 
   return node;
 }
@@ -279,6 +281,7 @@ bool isEmpty(url_queue* queue) {
 int enqueue_url(url_queue* queue, url data) {
   url_queue_node* node = init_queue_node(data);
   pthread_mutex_lock(&queue->lock);
+
   // Base Case
   if (isEmpty(queue)) {
     queue->head = node;
@@ -291,6 +294,7 @@ int enqueue_url(url_queue* queue, url data) {
   // Set new node to tail
   queue->tail = node;
   queue->size = queue->size + 1;
+  node->index = queue->size;
   pthread_mutex_unlock(&queue->lock);
   return 0;
 }
@@ -298,17 +302,16 @@ int enqueue_url(url_queue* queue, url data) {
 /**
  * dequeue_url - Dequeues node at the head of Queue
  * @queue: Pointer to queue that will be dequeued to
- * @return: URL String of dequeued node
+ * @return: Dequeued node containing url and it's index
  */
-url dequeue_url(url_queue* queue) {
+url_queue_node* dequeue_url(url_queue* queue) {
   // Base case
   if (isEmpty(queue)) {
     return NULL;
   }
 
   pthread_mutex_lock(&queue->lock);
-  url_queue_node* node = queue->head;
-  url dequeued_data = node->url;
+  url_queue_node* dequeued_node = queue->head;
 
   // Move head to next node in Queue
   queue->head = queue->head->next;
@@ -319,10 +322,10 @@ url dequeue_url(url_queue* queue) {
     queue->tail = NULL;
   }
 
-  free(node);
+  dequeued_node->next = NULL;
   pthread_mutex_unlock(&queue->lock);
 
-  return dequeued_data;
+  return dequeued_node;
 }
 
 /**
@@ -332,7 +335,8 @@ url dequeue_url(url_queue* queue) {
 void free_url_queue(url_queue* queue) {
   // Free each remaining node in queue
   while (!isEmpty(queue)) {
-    url dequeued_data = dequeue_url(queue);
+    url_queue_node* dequeued_data = dequeue_url(queue);
+    free(dequeued_data->url);
     free(dequeued_data);
   }
 
@@ -565,7 +569,7 @@ void* thread_worker(void* args) {
   thread_args* threadargs = (thread_args*)args;
 
   while (true) {
-    url url = dequeue_url(threadargs->queue);
+    url url = dequeue_url(threadargs->queue)->url;
     if (url == NULL)
       break;
 
@@ -641,8 +645,9 @@ void test_Queue() {
   enqueue_url(queue, data2);
   printf("Size is: %d\n", queue->size);
 
-  url pop1 = dequeue_url(queue);
-  printf("Popped String is: %s\n", pop1);
+  url_queue_node* pop1 = dequeue_url(queue);
+  printf("Popped String is: %s\n", pop1->url);
+  free(pop1->url);
   free(pop1);
   printf("Size is: %d\n", queue->size);
 
@@ -652,6 +657,7 @@ void test_Queue() {
     printf("Queue is NOT empty yet\n");
   }
 
+  printf("Freeing the rest of the queue...\n");
   free_url_queue(queue);
 }
 

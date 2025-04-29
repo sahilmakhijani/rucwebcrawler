@@ -505,7 +505,7 @@ occurrence_report* count_occurrences(char* html) {
 
     while (token != NULL) {
       // if we get a hit
-      printf("current:%s\n\n", &html[token - copy]);
+      // printf("current:%s\n\n", &html[token - copy]);
       if (startswith(&html[token - copy], report->word_counts[i].word)) {
         report->word_counts[i].count++;
       }

@@ -1,0 +1,7 @@
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/percolation/specification.php
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/queues/specification.php
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/autocomplete/specification.php
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/kdtree/specification.php
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/wordnet/specification.php
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/seam/specification.php
+https://www.cs.princeton.edu/courses/archive/spring22/cos226/assignments/burrows/specification.php

@@ -73,7 +73,7 @@ char* strdup(const char* str) {
 }
 
 bool ourcmp(char* str1, char* str2) {
-  for (int i = 0; str1[i] != '\0' || str2[i] != '\0'; i++) {
+  for (int i = 0; str1[i] != '\0'; i++) {
     char char1 = str1[i];
     char char2 = str2[i];
     if (char1 >= 'A' && char1 <= 'Z')
@@ -498,12 +498,14 @@ occurrence_report* count_occurrences(char* html) {
 
   // iterate through important words
   for (int i = 0; report->word_counts[i].word != NULL; i++) {
+    char* copy = strdup(html);
+
     // first token
-    char* token = strtok_r(html, delimiters, &current);
+    char* token = strtok_r(copy, delimiters, &current);
 
     while (token != NULL) {
       // if we get a hit
-      if (ourcmp(report->word_counts[i].word, current) == 0) {
+      if (ourcmp(report->word_counts[i].word, current)) {
         report->word_counts[i].count++;
         break;
       }
@@ -511,6 +513,8 @@ occurrence_report* count_occurrences(char* html) {
       // next token
       token = strtok_r(current, delimiters, &current);
     }
+
+    free(copy);
   }
 
   return report;
@@ -547,7 +551,10 @@ word* get_impwords() {
   char* token = strtok(impwords_content, "\n");
   while (token != NULL) {
     // strdup(token) makes a copy of the word and store in imp_words_array
-    important_words_array[important_word_count++] = strdup(token);
+    word word = token;
+    word[strcspn(word, "\n")] = 0;
+    word[strcspn(word, "\r\n")] = 0;
+    important_words_array[important_word_count++] = strdup(word);
     token = strtok(NULL, "\n");
     // After this our array looks like this, e.g: [0]: "data", [1]: "science",
     // etc.

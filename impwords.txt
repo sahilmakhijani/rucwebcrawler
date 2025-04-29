@@ -1,10 +1,10 @@
-tree 
-Data 
-binary 
-Structures 
-Hello! 
-search 
-Lil Peep 
-order 
-trees 
+tree
+Data
+binary
+Structures
+Hello!
+search
+Lil Peep
+order
+trees
 data structures

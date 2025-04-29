@@ -494,7 +494,7 @@ occurrence_report* count_occurrences(char* html) {
   char* current;  // current position in the html
 
   // some delimiters but it's ok not to be super exact
-  char* delimiters = ".,-\"';:?!@#/&*()[]{}/\\_~+= \t\r\n";
+  char* delimiters = ".,-\"';:?!@#/&*()[]{}<>/\\_~+= \t\r\n\f\v";
 
   // iterate through important words
   for (int i = 0; report->word_counts[i].word != NULL; i++) {
@@ -505,9 +505,9 @@ occurrence_report* count_occurrences(char* html) {
 
     while (token != NULL) {
       // if we get a hit
-      if (startswith(current, report->word_counts[i].word)) {
+      printf("current:%s\n\n", &html[token - copy]);
+      if (startswith(&html[token - copy], report->word_counts[i].word)) {
         report->word_counts[i].count++;
-        break;
       }
 
       // next token

@@ -505,7 +505,7 @@ occurrence_report* count_occurrences(char* html) {
 
     while (token != NULL) {
       // if we get a hit
-      printf("current:%s\n\n", &html[token - copy]);
+      // printf("current:%s\n\n", &html[token - copy]);
       if (startswith(&html[token - copy], report->word_counts[i].word)) {
         report->word_counts[i].count++;
       }
@@ -531,9 +531,18 @@ void log_occurrence_report(occurrence_report* or) {
 /***********************************************************/
 
 /*************************************************************
- * IMPWORDS (TODO)
+ * IMPWORDS
  ************************************************************/
-void init_impwords_file() {}
+void init_impwords_file() {
+  FILE* file = fopen(impwords_file, "r");
+  if (file == NULL) {
+    write_file(impwords_file,
+               "tree\nData\nbinary\nStructures\nHello!\nsearch\n"
+               "Lil Peep\norder\ntrees\ndata structures");
+  } else {
+    fclose(file);
+  }
+}
 
 word* get_impwords() {
   // Read important words
@@ -543,24 +552,29 @@ word* get_impwords() {
     exit(EXIT_FAILURE);  // TODO: return empty occurrence_report
   }
 
-  // Split important words into array
-  word* important_words_array =
-      (word*)malloc(26 * sizeof(word));  // assume max 25 words
-  int important_word_count = 0;
-  // splits important words separated by '\n'
-  char* token = strtok(impwords_content, "\n");
+  // Count words
+  char* copy = strdup(impwords_content);
+  int wordscount = 0;
+  char* token = strtok(copy, "\n");
   while (token != NULL) {
-    // strdup(token) makes a copy of the word and store in imp_words_array
+    wordscount++;
+    token = strtok(NULL, "\n");
+  }
+  free(copy);
+
+  // Split important words into array
+  word* important_words_array = (word*)malloc((wordscount + 1) * sizeof(word));
+
+  int i = 0;
+  token = strtok(impwords_content, "\n");
+  while (token != NULL) {
     word word = token;
     word[strcspn(word, "\n")] = 0;
     word[strcspn(word, "\r\n")] = 0;
-    important_words_array[important_word_count++] = strdup(word);
+    important_words_array[i++] = strdup(word);
     token = strtok(NULL, "\n");
-    // After this our array looks like this, e.g: [0]: "data", [1]: "science",
-    // etc.
   }
-
-  important_words_array[important_word_count] = NULL;
+  important_words_array[i] = NULL;
 
   free(impwords_content);
   return important_words_array;
@@ -598,6 +612,8 @@ void* thread_worker(void* args) {
  ************************************************************/
 int main(int argc, char* argv[]) {
   printf("=== RUC Web Crawler ===\n");
+
+  init_impwords_file();
 
   // Initialize queue
   url_queue* queue = init_url_queue();

@@ -74,11 +74,13 @@ char* strdup(const char* str) {
 
 bool ourcmp(char* str1, char* str2) {
   for (int i = 0; str1[i] != '\0' || str2[i] != '\0'; i++) {
-    if (str1[i] >= 'A' && str1[i] <= 'Z')
-      str1[i] += 32;
-    if (str2[i] >= 'A' && str2[i] <= 'Z')
-      str2[i] += 32;
-    if (str1[i] != str2[i])
+    char char1 = str1[i];
+    char char2 = str2[i];
+    if (char1 >= 'A' && char1 <= 'Z')
+      char1 += 32;
+    if (char2 >= 'A' && char2 <= 'Z')
+      char2 += 32;
+    if (char1 != char2)
       return false;
   }
   return true;

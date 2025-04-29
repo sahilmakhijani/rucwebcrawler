@@ -63,6 +63,12 @@ void* thread_worker(void* args);
 /*************************************************************
  * HELPERS
  ************************************************************/
+
+/**
+ * strdup - Duplicates the given string
+ * @str : given string
+ * @return: the duplicated string
+ */
 char* strdup(const char* str) {
   int n = strlen(str) + 1;
   char* dup = malloc(n);
@@ -72,6 +78,12 @@ char* strdup(const char* str) {
   return dup;
 }
 
+/**
+ * strdup - Checkes if given string startswith a prefix
+ * @str : given string
+ * @prefix : given prefix
+ * @return: true if prefix is prefix of str else false
+ */
 bool startswith(char* str, char* prefix) {
   for (int i = 0; prefix[i] != '\0'; i++) {
     char char1 = prefix[i];
@@ -580,6 +592,10 @@ void log_occurrence_report(occurrence_report* or) {
 /*************************************************************
  * IMPWORDS
  ************************************************************/
+
+/**
+ * init_impwords_file - Initializes impwords file if not found
+ */
 void init_impwords_file() {
   FILE* file = fopen(impwords_file, "r");
   if (file == NULL) {
@@ -591,6 +607,10 @@ void init_impwords_file() {
   }
 }
 
+/**
+ * get_impwords - Reads in the impwords file
+ * @returns: array of words
+ */
 word* get_impwords() {
   // Read important words
   char* impwords_content = read_file(impwords_file);
@@ -635,6 +655,10 @@ typedef struct thread_args_st {
   occurrence_report* globalor;
 } thread_args;
 
+/**
+ * thread_worker - Thread worker
+ * @args: thread args with queue and globalor
+ */
 void* thread_worker(void* args) {
   thread_args* threadargs = (thread_args*)args;
 

@@ -96,7 +96,10 @@ typedef struct MemoryStruct {
   size_t size;
 } MemoryStruct;
 
-// Function to read a file and return its contents
+/** read_file: function to read a file and return its contents
+ * @buffer: returns the contents read from the files
+*/
+
 char* read_file(char* filename) {
   FILE* file = fopen(filename, "r");
   // error handling for FNF / wrong file name
@@ -142,8 +145,10 @@ char* read_file(char* filename) {
   return buffer;
 }
 
-// Callback function for libcurl
-// Helps curl store downloaded data into memory
+/*** Callback function for libcurl
+WriteMemoryCallback: Helps curl store downloaded data into memory 
+@chunk.memory: returns struct
+*/
 static size_t WriteMemoryCallback(void* contents,
                                   size_t size,
                                   size_t nmemb,
@@ -169,7 +174,10 @@ static size_t WriteMemoryCallback(void* contents,
   return real_size;
 }
 
-// Function to fetch HTML content from a URL as a char*
+/** fetch(): function to fetch HTML content from a URL as a char
+@url: url to fetch html from
+*/
+
 char* fetch(url url) {
   CURL* curl_handle;
   CURLcode res;
@@ -210,8 +218,11 @@ char* fetch(url url) {
   return chunk.memory;
 }
 
-// WRITE FUNCTION
-// takes in char content in the memory
+/** write_file: takes in char content in the memory and writes to the file
+@file: file to write
+@data: char data to write
+*/
+
 int write_file(char* filename, char* data) {
   FILE* file = fopen(filename, "w");
   // error handling

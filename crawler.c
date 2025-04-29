@@ -257,6 +257,10 @@ url_queue* init_url_queue() {
  * @return: Pointer to initialized node
  */
 url_queue_node* init_queue_node(url data) {
+  if (data == NULL) {  // Error Handling
+    fprintf(stderr, "Error: URL String is null\n");
+    return NULL;
+  }
   url_queue_node* node = (url_queue_node*)malloc(sizeof(url_queue_node));
   node->url = data;
   node->next = NULL;
@@ -271,6 +275,10 @@ url_queue_node* init_queue_node(url data) {
  * @return: True if queue is empty; False otherwise
  */
 bool isEmpty(url_queue* queue) {
+  if (queue == NULL) {  // Error Handling
+    fprintf(stderr, "Error: Pointer to Queue is null\n");
+    return false;
+  }
   return (queue->head == NULL);
 }
 
@@ -281,7 +289,19 @@ bool isEmpty(url_queue* queue) {
  * @return: 0 if enqueue is successful
  */
 int enqueue_url(url_queue* queue, url data) {
+  if (data == NULL) {  // Error Handling
+    fprintf(stderr, "Error: URL String is null\n");
+    return -1;
+  } else if (queue == NULL) {  // Error Handling
+    fprintf(stderr, "Error: Pointer to Queue is null\n");
+    return -1;
+  }
+
   url_queue_node* node = init_queue_node(data);
+  if (node == NULL) {  // Error Handling
+    fprintf(stderr, "Error: Unable to create new node\n");
+    return -1;
+  }
   pthread_mutex_lock(&queue->lock);
 
   // Base Case
@@ -307,6 +327,10 @@ int enqueue_url(url_queue* queue, url data) {
  * @return: Dequeued node containing url and it's index
  */
 url_queue_node* dequeue_url(url_queue* queue) {
+  if (queue == NULL) {  // Error Handling
+    fprintf(stderr, "Error: Pointer to Queue is null\n");
+    return NULL;
+  }
   // Base case
   if (isEmpty(queue)) {
     return NULL;
@@ -335,6 +359,10 @@ url_queue_node* dequeue_url(url_queue* queue) {
  * @queue: Pointer to queue that will be freed
  */
 void free_url_queue(url_queue* queue) {
+  if (queue == NULL) {  // Error Handling
+    fprintf(stderr, "Error: Pointer to Queue is null\n");
+    return;
+  }
   // Free each remaining node in queue
   while (!isEmpty(queue)) {
     url_queue_node* dequeued_data = dequeue_url(queue);
@@ -406,6 +434,10 @@ occurrence_report* init_occurrence_report() {
     free(report->word_counts);
     report->word_counts = NULL;
     free(report);
+    for (int i = 0; words[i] != NULL; i++) {
+      free(words[i]);
+    }
+
     free(words);
     return NULL;
   }
@@ -413,6 +445,10 @@ occurrence_report* init_occurrence_report() {
   // Delimiter for the word_counts in the report.
   report->word_counts[count].word = NULL;
   report->word_counts[count].count = 0;  // Not needed but to avoid garbage
+
+  for (int i = 0; words[i] != NULL; i++) {
+    free(words[i]);
+  }
 
   free(words);
   return report;
@@ -603,6 +639,8 @@ void* thread_worker(void* args) {
     write_file(filename, html);
     occurrence_report* localor = count_occurrences(html);
     update_occurrence_report(threadargs->globalor, localor);
+    free(html);
+    free_occurrence_report(localor);
     free(node);
   }
 }

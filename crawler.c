@@ -71,16 +71,16 @@ char* strdup(const char* str) {
   return dup;
 }
 
-/** HELPER FUNCTION
- * to_lowercase - lowers each character in a character array
- * @str: the array of characters
- */
-void to_lowercase(char* str) {
-  // Because of how ASCII works, we can add 25 to lower any uppercase char
-  for (int i = 0; str[i] != '\0'; i++) {
-    if (str[i] >= 'A' && str[i] <= 'Z')
-      str[i] += 32;
+bool ourcmp(char* str1, char* str2) {
+  for (int i = 0; str1[i] != '\0' || str2[i] != '\0'; i++) {
+    if (str1[i] >= 'A' && str1[i] <= 'Z')
+      str1[i] += 32;
+    if (str2[i] >= 'A' && str2[i] <= 'Z')
+      str2[i] += 32;
+    if (str1[i] != str2[i])
+      return false;
   }
+  return true;
 }
 
 /*************************************************************
@@ -490,24 +490,21 @@ occurrence_report* count_occurrences(char* html) {
   // some delimiters but it's ok not to be super exact
   char* delimiters = ".,-\"';:?!@#/&*()[]{}/\\_~+= \t\r\n";
 
-  // first token
-  char* token = strtok_r(html, delimiters, &current);
+  // iterate through important words
+  for (int i = 0; report->word_counts[i].word != NULL; i++) {
+    // first token
+    char* token = strtok_r(html, delimiters, &current);
 
-  while (token != NULL) {
-    // lowercase the word
-    to_lowercase(token);
-
-    // iterate through important words
-    for (int i = 0; report->word_counts[i].word != NULL; i++) {
+    while (token != NULL) {
       // if we get a hit
-      if (strcmp(token, report->word_counts[i].word) == 0) {
+      if (ourcmp(report->word_counts[i].word, current) == 0) {
         report->word_counts[i].count++;
         break;
       }
-    }
 
-    // next token
-    token = strtok_r(current, delimiters, &current);
+      // next token
+      token = strtok_r(current, delimiters, &current);
+    }
   }
 
   return report;

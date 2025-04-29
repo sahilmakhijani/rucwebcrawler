@@ -571,14 +571,18 @@ void* thread_worker(void* args) {
   thread_args* threadargs = (thread_args*)args;
 
   while (true) {
-    url url = dequeue_url(threadargs->queue)->url;
-    if (url == NULL)
+    url_queue_node* node = dequeue_url(threadargs->queue);
+    if (node == NULL)
       break;
 
-    char* html = fetch(url);
-    write_file("page.html", html);
+    char filename[20];
+    sprintf(filename, "page%d.html", node->index);
+
+    char* html = fetch(node->url);
+    write_file(filename, html);
     occurrence_report* localor = count_occurrences(html);
     update_occurrence_report(threadargs->globalor, localor);
+    free(node);
   }
 }
 

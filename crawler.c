@@ -23,6 +23,7 @@ typedef struct url_queue_struct {
   url_queue_node* head;
   url_queue_node* tail;
   pthread_mutex_t lock;
+  int count;
   int size;
 } url_queue;
 
@@ -110,8 +111,7 @@ typedef struct MemoryStruct {
 
 /** read_file: function to read a file and return its contents
  * @buffer: returns the contents read from the files
-*/
-
+ */
 char* read_file(char* filename) {
   FILE* file = fopen(filename, "r");
   // error handling for FNF / wrong file name
@@ -158,7 +158,7 @@ char* read_file(char* filename) {
 }
 
 /*** Callback function for libcurl
-WriteMemoryCallback: Helps curl store downloaded data into memory 
+WriteMemoryCallback: Helps curl store downloaded data into memory
 @chunk.memory: returns struct
 */
 static size_t WriteMemoryCallback(void* contents,
@@ -234,7 +234,6 @@ char* fetch(url url) {
 @file: file to write
 @data: char data to write
 */
-
 int write_file(char* filename, char* data) {
   FILE* file = fopen(filename, "w");
   // error handling
@@ -269,6 +268,7 @@ url_queue* init_url_queue() {
   q->head = NULL;
   q->tail = NULL;
   pthread_mutex_init(&q->lock, NULL);
+  q->count = 0;
   q->size = 0;
 
   return q;
@@ -339,7 +339,7 @@ int enqueue_url(url_queue* queue, url data) {
   // Set new node to tail
   queue->tail = node;
   queue->size = queue->size + 1;
-  node->index = queue->size;
+  node->index = ++queue->count;
   pthread_mutex_unlock(&queue->lock);
   return 0;
 }
